@@ -2,20 +2,25 @@
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 APP="$1";  IMAGE="dokku/$APP"
 
-BOWERSCRIPT="
+SCRIPT="
 #!/bin/bash
 
 cd /app
-PATH=\$PATH:/app/vendor/node/bin
+export PATH=\$PATH:/app/vendor/node/bin
+
 if [[ -f ./bower.json ]]; then
 	npm install -g bower && bower install --allow-root
 fi
+
+if [[ -f ./Gruntfile.js ]]; then
+	npm install -g grunt && grunt build
+fi
 "
 
-echo '-----> Injecting bower script'
-id=$(echo "$BOWERSCRIPT" | docker run -i -a stdin $IMAGE /bin/bash -c "cat > /app/.bower")
+echo '-----> Injecting bower/grunt script'
+id=$(echo "$SCRIPT" | docker run -i -a stdin $IMAGE /bin/bash -c "cat > /app/.bowergrunt")
 test $(docker wait $id) -eq 0
 docker commit $id $IMAGE > /dev/null
-id=$(docker run -d $IMAGE /bin/bash -c "chmod +x /app/.bower")
+id=$(docker run -d $IMAGE /bin/bash -c "chmod +x /app/.bowergrunt")
 test $(docker wait $id) -eq 0
 docker commit $id $IMAGE > /dev/null
